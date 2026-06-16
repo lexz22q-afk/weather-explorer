@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weather Journey</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#16324F;        /* deep navy outline */
+    --sky:#4DA8DA;        /* sky blue */
+    --sun:#FFD23F;        /* sunny yellow */
+    --good:#34C759;       /* correct green */
+    --bad:#FF4D4D;        /* wrong red */
+    --card:#FFFFFF;
+    --soft:#EAF4FB;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    font-family:'Fredoka',system-ui,sans-serif;
+    color:var(--ink);
+    background:linear-gradient(180deg,#bfe3f7 0%,#9fd0ee 100%);
+    transition:background .8s ease;
+    min-height:100%;
+    overflow-x:hidden;
+  }
+  /* stage backgrounds */
+  body.bg-intro {background:linear-gradient(180deg,#cdeafd,#a7d8f4);}
+  body.bg-cold  {background:linear-gradient(180deg,#d8ecff,#a9cdf0);}
+  body.bg-snow  {background:linear-gradient(180deg,#eef6ff,#cfe3f5);}
+  body.bg-rain  {background:linear-gradient(180deg,#aebfcf,#8fa6bb);}
+  body.bg-sun   {background:linear-gradient(180deg,#fff3c4,#ffd98a);}
+  body.bg-mix   {background:linear-gradient(180deg,#bfe0c9,#9fd0ee);}
+  body.bg-boss  {background:linear-gradient(180deg,#cfe9ff,#9fb9d6);}
+
+  .wrap{max-width:680px;margin:0 auto;padding:10px 14px 30px;}
+
+  /* ===== HUD ===== */
+  .hud{
+    position:sticky;top:0;z-index:30;
+    background:rgba(255,255,255,.82);
+    backdrop-filter:blur(6px);
+    border:3px solid var(--ink);
+    border-radius:18px;
+    padding:8px 12px;
+    margin:6px 0 14px;
+    box-shadow:0 5px 0 rgba(22,50,79,.25);
+  }
+  .hud-top{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  .score-pill{
+    display:flex;align-items:center;gap:6px;
+    background:var(--sun);border:3px solid var(--ink);
+    border-radius:30px;padding:4px 14px;font-weight:700;font-size:20px;
+    box-shadow:0 3px 0 rgba(22,50,79,.3);
+    transition:transform .15s;
+  }
+  .score-pill.bump{transform:scale(1.18);}
+  .stage-tag{font-weight:600;font-size:14px;opacity:.8;text-align:right;}
+
+  /* journey track */
+  .track{
+    position:relative;height:30px;margin-top:10px;
+    background:var(--soft);border:3px solid var(--ink);
+    border-radius:20px;overflow:hidden;
+  }
+  .track-fill{
+    position:absolute;left:0;top:0;bottom:0;width:0%;
+    background:linear-gradient(90deg,#8fe3a0,#34C759);
+    transition:width .5s ease;
+  }
+  .traveler{
+    position:absolute;top:50%;left:0;transform:translate(-50%,-50%);
+    font-size:24px;transition:left .5s ease;z-index:2;line-height:1;
+  }
+  .flag{position:absolute;right:4px;top:50%;transform:translateY(-50%);font-size:20px;z-index:2;}
+
+  /* ===== panels ===== */
+  .panel{
+    background:var(--card);border:3px solid var(--ink);
+    border-radius:22px;padding:18px 16px;
+    box-shadow:0 6px 0 rgba(22,50,79,.22);
+    animation:pop .25s ease;
+  }
+  @keyframes pop{from{transform:scale(.96);opacity:0}to{transform:scale(1);opacity:1}}
+
+  .qtitle{font-size:15px;font-weight:600;opacity:.75;margin-bottom:4px;}
+  .weather-line{font-size:30px;font-weight:700;text-align:center;margin:6px 0 14px;}
+  .weather-line .emoji{font-size:46px;display:block;margin-bottom:4px;}
+  .big-emoji{font-size:90px;text-align:center;margin:6px 0 14px;line-height:1;}
+
+  /* buttons */
+  .btn{
+    font-family:inherit;font-weight:700;font-size:19px;color:var(--ink);
+    background:var(--sun);border:3px solid var(--ink);border-radius:16px;
+    padding:13px 16px;cursor:pointer;width:100%;
+    box-shadow:0 5px 0 rgba(22,50,79,.35);
+    transition:transform .08s, box-shadow .08s;margin:0;
+  }
+  .btn:active{transform:translateY(4px);box-shadow:0 1px 0 rgba(22,50,79,.35);}
+  .btn.sky{background:var(--sky);color:#fff;}
+  .btn.ghost{background:#fff;}
+  .btn[disabled]{opacity:.55;cursor:default;}
+
+  .opt-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .opt-grid.one{grid-template-columns:1fr;}
+  .opt-grid.three{grid-template-columns:1fr;}
+  .opt{
+    font-family:inherit;font-weight:600;font-size:18px;color:var(--ink);
+    background:#fff;border:3px solid var(--ink);border-radius:16px;
+    padding:14px 10px;cursor:pointer;text-align:center;
+    box-shadow:0 4px 0 rgba(22,50,79,.25);transition:transform .08s,box-shadow .08s,background .15s;
+  }
+  .opt:active{transform:translateY(3px);box-shadow:0 1px 0 rgba(22,50,79,.25);}
+  .opt.correct{background:var(--good);color:#fff;border-color:#1f8f3e;}
+  .opt.wrong{background:var(--bad);color:#fff;border-color:#b22;}
+  .opt[disabled]{cursor:default;}
+
+  /* text input */
+  .hint{text-align:center;font-size:18px;font-weight:600;margin-bottom:10px;opacity:.85;}
+  .inrow{display:flex;gap:10px;}
+  .field{
+    flex:1;font-family:inherit;font-size:22px;font-weight:600;color:var(--ink);
+    border:3px solid var(--ink);border-radius:14px;padding:12px 14px;outline:none;
+    text-align:center;background:#fff;min-width:0;
+  }
+  .field:focus{border-color:var(--sky);}
+
+  /* memory */
+  .mem-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;}
+  .mcard{
+    aspect-ratio:1/1;border:3px solid var(--ink);border-radius:14px;
+    background:var(--sky);color:#fff;font-weight:700;
+    display:flex;align-items:center;justify-content:center;text-align:center;
+    font-size:15px;cursor:pointer;padding:4px;
+    box-shadow:0 4px 0 rgba(22,50,79,.25);transition:transform .12s,background .2s;
+    user-select:none;
+  }
+  .mcard.flip{background:#fff;color:var(--ink);}
+  .mcard.done{background:var(--good);color:#fff;border-color:#1f8f3e;cursor:default;opacity:.85;}
+  .mcard .q{font-size:34px;}
+
+  /* sentence builder */
+  .build-zone{
+    min-height:56px;border:3px dashed var(--ink);border-radius:14px;
+    background:var(--soft);padding:10px;display:flex;flex-wrap:wrap;gap:8px;
+    align-items:center;margin-bottom:12px;
+  }
+  .bank{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;justify-content:center;}
+  .chip{
+    font-family:inherit;font-weight:600;font-size:18px;color:var(--ink);
+    background:#fff;border:3px solid var(--ink);border-radius:12px;
+    padding:8px 14px;cursor:pointer;box-shadow:0 3px 0 rgba(22,50,79,.25);
+  }
+  .chip:active{transform:translateY(2px);}
+  .chip.used{opacity:.25;pointer-events:none;}
+  .chip.placed{background:var(--sun);}
+
+  /* boss */
+  .boss-stage{text-align:center;}
+  .boss-emoji{font-size:80px;line-height:1;transition:transform .2s;}
+  .boss-emoji.hit{transform:scale(.8) rotate(-8deg);}
+  .hp{
+    height:24px;background:#fff;border:3px solid var(--ink);border-radius:14px;
+    overflow:hidden;margin:6px auto 14px;max-width:320px;
+  }
+  .hp-fill{height:100%;background:linear-gradient(90deg,#ff7a7a,#FF4D4D);transition:width .35s;}
+
+  /* feedback */
+  .toast{
+    position:fixed;left:50%;top:46%;transform:translate(-50%,-50%) scale(.8);
+    z-index:60;font-weight:700;font-size:26px;color:#fff;
+    padding:16px 26px;border-radius:18px;border:3px solid rgba(0,0,0,.25);
+    opacity:0;pointer-events:none;transition:transform .2s,opacity .2s;text-align:center;
+  }
+  .toast.show{opacity:1;transform:translate(-50%,-50%) scale(1);}
+  .toast.good{background:var(--good);}
+  .toast.bad{background:var(--bad);}
+
+  /* explanation modal (wrong answers stay until closed) */
+  .modal-bg{
+    position:fixed;inset:0;background:rgba(22,50,79,.45);z-index:70;
+    display:none;align-items:center;justify-content:center;padding:18px;
+  }
+  .modal-bg.show{display:flex;}
+  .modal{
+    background:#fff;border:3px solid var(--ink);border-radius:20px;
+    padding:22px 18px 18px;max-width:340px;width:100%;text-align:center;position:relative;
+    box-shadow:0 8px 0 rgba(22,50,79,.3);animation:pop .2s ease;
+  }
+  .modal .x{
+    position:absolute;top:8px;right:10px;width:34px;height:34px;border-radius:50%;
+    border:3px solid var(--ink);background:var(--bad);color:#fff;font-weight:700;font-size:18px;
+    cursor:pointer;line-height:1;
+  }
+  .modal h3{color:var(--bad);font-size:22px;margin-bottom:8px;}
+  .modal .ans{font-size:24px;font-weight:700;margin:8px 0 4px;}
+  .modal .ru{font-size:15px;opacity:.7;margin-bottom:14px;}
+
+  /* start / end */
+  .center{text-align:center;}
+  .title-big{font-size:34px;font-weight:700;margin:6px 0;line-height:1.1;}
+  .lead{font-size:17px;font-weight:500;opacity:.85;margin:10px 0 18px;}
+  .word-list{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:14px 0;}
+  .wbox{background:var(--soft);border:3px solid var(--ink);border-radius:14px;padding:8px 12px;font-weight:600;font-size:15px;}
+  .wbox b{font-size:24px;display:block;}
+  .model{background:var(--soft);border:3px solid var(--ink);border-radius:14px;padding:12px;margin:8px 0;font-size:18px;font-weight:600;text-align:left;}
+  .model em{font-style:normal;color:var(--sky);font-weight:700;}
+  .stars{font-size:46px;margin:10px 0;}
+  .spacer{height:12px;}
+  @media(max-width:420px){
+    .title-big{font-size:28px;}
+    .weather-line{font-size:24px;}
+    .big-emoji{font-size:72px;}
+    .opt{font-size:16px;}
+  }
+</style>
+</head>
+<body class="bg-intro">
+<div class="wrap">
+
+  <!-- HUD -->
+  <div class="hud" id="hud">
+    <div class="hud-top">
+      <div class="score-pill" id="scorePill">⭐ <span id="score">0</span></div>
+      <div class="stage-tag" id="stageTag">Weather Journey</div>
+    </div>
+    <div class="track">
+      <div class="track-fill" id="trackFill"></div>
+      <div class="traveler" id="traveler" style="left:0%">🧒</div>
+      <div class="flag">🏁</div>
+    </div>
+  </div>
+
+  <!-- main -->
+  <div id="screen"></div>
+
+</div>
+
+<!-- feedback -->
+<div class="toast" id="toast"></div>
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <button class="x" id="modalX" aria-label="Закрыть">✕</button>
+    <h3>Неверно</h3>
+    <div class="ru">Правильный ответ:</div>
+    <div class="ans" id="modalAns"></div>
+    <div class="ru" id="modalRu"></div>
+    <button class="btn sky" id="modalNext">Дальше →</button>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   WEATHER JOURNEY — A1, дети, 1-to-1 online
+   Лексика: одежда + погода + повелительное наклонение
+   ============================================================ */
+
+const TARGET_CORRECT = 46;     // всего верных ответов до финиша
+let score = 0;
+let journeyDone = 0;
+
+/* ---------- DOM ---------- */
+const screenEl = document.getElementById('screen');
+const scoreEl  = document.getElementById('score');
+const scorePill= document.getElementById('scorePill');
+const stageTag = document.getElementById('stageTag');
+const trackFill= document.getElementById('trackFill');
+const traveler = document.getElementById('traveler');
+const toast    = document.getElementById('toast');
+const modalBg  = document.getElementById('modalBg');
+const modalAns = document.getElementById('modalAns');
+const modalRu  = document.getElementById('modalRu');
+const modalX   = document.getElementById('modalX');
+const modalNext= document.getElementById('modalNext');
+
+/* ---------- helpers ---------- */
+function setBg(name){ document.body.className = 'bg-'+name; }
+function shuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
+
+function addScore(){
+  score += 10;
+  scoreEl.textContent = score;
+  scorePill.classList.add('bump');
+  setTimeout(()=>scorePill.classList.remove('bump'),160);
+  journeyDone = Math.min(journeyDone+1, TARGET_CORRECT);
+  const pct = (journeyDone/TARGET_CORRECT)*100;
+  trackFill.style.width = pct+'%';
+  traveler.style.left = Math.min(pct,96)+'%';
+}
+
+function showGood(cb){
+  toast.textContent='ВЕРНО! +10 ⭐️';
+  toast.className='toast good show';
+  setTimeout(()=>{ toast.classList.remove('show'); cb && cb(); }, 1300);
+}
+/* wrong: модальное окно с крестиком — не исчезает само */
+let modalCb=null;
+function showWrong(answerEng, answerRu, cb){
+  toast.textContent='Неверно ✗';
+  toast.className='toast bad show';
+  setTimeout(()=>toast.classList.remove('show'),900);
+  modalAns.textContent = answerEng;
+  modalRu.textContent  = answerRu ? '('+answerRu+')' : '';
+  modalBg.classList.add('show');
+  modalCb = cb;
+}
+function closeModal(){ modalBg.classList.remove('show'); const cb=modalCb; modalCb=null; cb && cb(); }
+modalX.onclick = closeModal;
+modalNext.onclick = closeModal;
+
+function norm(s){
+  return (s||'').toLowerCase().trim()
+    .replace(/[.!?,]/g,'')
+    .replace(/\s+/g,' ')
+    .replace(/^(a|an|the)\s+/,'')
+    .replace(/[’']/g,"'");
+}
+
+/* ============================================================
+   ДАННЫЕ
+   ============================================================ */
+
+// STAGE 1 — мемори (рус ↔ англ)
+const MEM = [
+  {en:'coat',     ru:'пальто'},
+  {en:'jeans',    ru:'джинсы'},
+  {en:'sneakers', ru:'кроссовки'},
+  {en:'umbrella', ru:'зонт'},
+  {en:'gloves',   ru:'перчатки'},
+  {en:'boots',    ru:'ботинки'},
+];
+
+// STAGE 2 — картинка → выбор слова (6 вариантов)
+const PIC = [
+  {emoji:'🩳', ans:'shorts',   opts:['shorts','coat','jeans','gloves','boots','jacket']},
+  {emoji:'👖', ans:'jeans',    opts:['jeans','shorts','sneakers','umbrella','gloves','coat']},
+  {emoji:'👟', ans:'sneakers', opts:['sneakers','boots','jeans','gloves','coat','umbrella']},
+  {emoji:'☔', ans:'umbrella', opts:['umbrella','coat','gloves','boots','jeans','sneakers']},
+  {emoji:'🧤', ans:'gloves',   opts:['gloves','boots','shorts','sneakers','jacket','jeans']},
+  {emoji:'🥾', ans:'boots',    opts:['boots','sneakers','gloves','shorts','coat','umbrella']},
+  {emoji:'🧥', ans:'coat',     opts:['coat','jeans','shorts','gloves','sneakers','umbrella']},
+];
+
+// STAGE 3 — погода → правильная команда (по учебнику)
+const WEATHER = [
+  {emoji:'❄️', w:"It's cold.",  opts:["Put on your coat.","Take off your coat."],        ans:0},
+  {emoji:'☀️', w:"It's hot.",   opts:["Take off your sweater.","Put on your sweater."],   ans:0},
+  {emoji:'🌧️', w:"It's rainy.", opts:["Don't forget your umbrella.","Take off your umbrella."], ans:0},
+  {emoji:'💨', w:"It's windy.", opts:["Put on your jacket.","Don't put on your jacket."], ans:0},
+  {emoji:'🌨️', w:"It's snowy.", opts:["Don't forget your boots.","Take off your boots."], ans:0},
+  {emoji:'😎', w:"It's sunny.", opts:["Take off your raincoat.","Don't take off your raincoat."], ans:0},
+  {emoji:'🥶', w:"It's cold.",  opts:["Don't forget your gloves.","Take off your gloves."], ans:0},
+  {emoji:'🥵', w:"It's hot.",   opts:["Take off your gloves.","Put on your gloves."],     ans:0},
+];
+
+// STAGE 4 — печатный ввод (гибкие ответы)
+const TYPE = [
+  {emoji:'🧥', ru:'пальто',   accept:['coat']},
+  {emoji:'☔', ru:'зонт',     accept:['umbrella']},
+  {emoji:'👖', ru:'джинсы',   accept:['jeans']},
+  {emoji:'🧤', ru:'перчатки', accept:['gloves']},
+  {emoji:'🩳', ru:'шорты',    accept:['shorts']},
+  {emoji:'👟', ru:'кроссовки',accept:['sneakers']},
+];
+
+// STAGE 5 — правда/ложь
+const TF = [
+  {emoji:'☀️', text:"It's hot. Take off your coat.",        ok:true},
+  {emoji:'❄️', text:"It's cold. Take off your jacket.",      ok:false, fix:"Put on your jacket."},
+  {emoji:'🌧️', text:"It's rainy. Don't forget your umbrella.",ok:true},
+  {emoji:'😎', text:"It's sunny. Put on your raincoat.",     ok:false, fix:"Take off your raincoat."},
+  {emoji:'🥶', text:"It's cold. Put on your gloves.",        ok:true},
+  {emoji:'🥵', text:"It's hot. Put on your sweater.",        ok:false, fix:"Take off your sweater."},
+];
+
+// STAGE 6 — собери предложение
+const BUILD = [
+  {emoji:'❄️', words:['Put','on','your','coat'],        answer:'put on your coat'},
+  {emoji:'☀️', words:['Take','off','your','sweater'],   answer:'take off your sweater'},
+  {emoji:'🌧️', words:["Don't",'forget','your','umbrella'], answer:"don't forget your umbrella"},
+  {emoji:'💨', words:['Put','on','your','jacket'],      answer:'put on your jacket'},
+  {emoji:'🥵', words:['Take','off','your','gloves'],    answer:'take off your gloves'},
+];
+
+// STAGE 7 — босс «Генерал Мороз»
+const BOSS_POOL = [
+  {emoji:'❄️', w:"It's cold.",  opts:["Put on your coat.","Take off your coat.","Don't forget your coat."], ans:0},
+  {emoji:'🥵', w:"It's hot.",   opts:["Take off your jacket.","Put on your jacket.","Don't put on your jacket."], ans:0},
+  {emoji:'🌧️', w:"It's rainy.", opts:["Don't forget your umbrella.","Put on your umbrella.","Take off your umbrella."], ans:0},
+  {emoji:'🌨️', w:"It's snowy.", opts:["Don't forget your boots.","Take off your boots.","Take off your gloves."], ans:0},
+  {emoji:'😎', w:"It's sunny.", opts:["Take off your raincoat.","Put on your raincoat.","Don't take off your raincoat."], ans:0},
+  {emoji:'💨', w:"It's windy.", opts:["Put on your jacket.","Take off your jacket.","Don't put on your jacket."], ans:0},
+  {emoji:'🥶', w:"It's cold.",  opts:["Don't forget your gloves.","Take off your gloves.","Take off your coat."], ans:0},
+  {emoji:'☀️', w:"It's hot.",   opts:["Take off your sweater.","Put on your sweater.","Don't forget your sweater."], ans:0},
+  {emoji:'🌧️', w:"It's rainy.", opts:["Put on your raincoat.","Take off your raincoat.","Take off your boots."], ans:0},
+  {emoji:'❄️', w:"It's cold.",  opts:["Put on your sweater.","Take off your sweater.","Don't forget your shorts."], ans:0},
+];
+
+const RU = {
+  shorts:'шорты', sneakers:'кроссовки', umbrella:'зонт', coat:'пальто',
+  jeans:'джинсы', gloves:'перчатки', boots:'ботинки', jacket:'куртка',
+  sweater:'свитер', raincoat:'дождевик'
+};
+
+/* максимум очков (идеальное прохождение) */
+const MAX_SCORE = (MEM.length + PIC.length + WEATHER.length + TYPE.length + TF.length + BUILD.length + 8) * 10; // = 460
+
+/* ============================================================
+   ИНТРО
+   ============================================================ */
+function renderIntro(){
+  setBg('intro');
+  stageTag.textContent='Старт';
+  const clothes = [
+    ['🩳','shorts','шорты'],['👟','sneakers','кроссовки'],['☔','umbrella','зонт'],
+    ['🧥','coat','пальто'],['👖','jeans','джинсы'],['🧤','gloves','перчатки'],
+    ['🥾','boots','ботинки']
+  ];
+  screenEl.innerHTML = `
+    <div class="panel center">
+      <div class="title-big">🧭 Weather Journey</div>
+      <div class="lead">Помоги путешественнику пройти все погодные зоны! Одевайся по погоде.</div>
+      <div class="word-list">
+        ${clothes.map(c=>`<div class="wbox"><b>${c[0]}</b>${c[1]}<br><span style="opacity:.6">${c[2]}</span></div>`).join('')}
+      </div>
+      <div class="model">❄️ It's cold. <em>Put on</em> your coat.</div>
+      <div class="model">☀️ It's hot. <em>Take off</em> your sweater.</div>
+      <div class="model">🌧️ It's rainy. <em>Don't forget</em> your umbrella.</div>
+      <div class="spacer"></div>
+      <button class="btn" id="startBtn">Начать игру →</button>
+    </div>`;
+  document.getElementById('startBtn').onclick = ()=>startStage(0);
+}
+
+/* ============================================================
+   ДВИЖОК ЭТАПОВ
+   ============================================================ */
+const STAGES = [
+  {name:'Гардероб',  bg:'cold', run:runMemory},
+  {name:'Что это?',  bg:'snow', run:runPic},
+  {name:'Какая погода?', bg:'rain', run:runWeather},
+  {name:'Напиши слово',  bg:'sun',  run:runType},
+  {name:'Правда / Ложь', bg:'mix',  run:runTF},
+  {name:'Собери фразу',  bg:'cold', run:runBuild},
+  {name:'Босс: Генерал Мороз', bg:'boss', run:runBoss},
+];
+let stageIdx=0;
+function startStage(i){
+  stageIdx=i;
+  setBg(STAGES[i].bg);
+  stageTag.textContent = `Этап ${i+1}/${STAGES.length} · ${STAGES[i].name}`;
+  STAGES[i].run();
+}
+function nextStage(){
+  if(stageIdx+1 < STAGES.length) startStage(stageIdx+1);
+  else renderEnd();
+}
+/* короткая заставка между этапами */
+function stageIntro(emoji, text, cb){
+  screenEl.innerHTML = `<div class="panel center">
+     <div class="big-emoji">${emoji}</div>
+     <div class="title-big">${text}</div>
+     <div class="spacer"></div>
+     <button class="btn sky" id="go">Дальше →</button></div>`;
+  document.getElementById('go').onclick = cb;
+}
+
+/* ============================================================
+   STAGE 1 — МЕМОРИ
+   ============================================================ */
+function runMemory(){
+  stageIntro('🧳','Найди пары: слово и перевод', ()=>{
+    let cards=[];
+    MEM.forEach((p,idx)=>{
+      cards.push({pair:idx, face:p.en, type:'en'});
+      cards.push({pair:idx, face:p.ru, type:'ru'});
+    });
+    cards = shuffle(cards);
+    let first=null, lock=false, matched=0;
+    screenEl.innerHTML = `<div class="panel">
+        <div class="qtitle">Открой две одинаковые карточки</div>
+        <div class="mem-grid" id="memGrid"></div></div>`;
+    const grid=document.getElementById('memGrid');
+    cards.forEach((c,i)=>{
+      const el=document.createElement('div');
+      el.className='mcard'; el.innerHTML='<span class="q">?</span>';
+      el.onclick=()=>{
+        if(lock||el.classList.contains('done')||el===first) return;
+        el.classList.add('flip'); el.textContent=c.face;
+        if(!first){ first={el,c}; return; }
+        lock=true;
+        if(first.c.pair===c.pair){
+          addScore();
+          setTimeout(()=>{
+            first.el.classList.add('done'); el.classList.add('done');
+            first.el.classList.remove('flip'); el.classList.remove('flip');
+            first=null; lock=false; matched++;
+            if(matched===MEM.length){ setTimeout(nextStage,500); }
+          },450);
+        }else{
+          setTimeout(()=>{
+            first.el.classList.remove('flip'); first.el.innerHTML='<span class="q">?</span>';
+            el.classList.remove('flip'); el.innerHTML='<span class="q">?</span>';
+            first=null; lock=false;
+          },800);
+        }
+      };
+      grid.appendChild(el);
+    });
+  });
+}
+
+/* ============================================================
+   STAGE 2 — КАРТИНКА → 6 ВАРИАНТОВ
+   ============================================================ */
+function runPic(){
+  stageIntro('🖼️','Выбери правильное слово', ()=>{
+    const list = shuffle(PIC); let i=0;
+    function show(){
+      const q=list[i];
+      const opts=shuffle(q.opts);
+      screenEl.innerHTML=`<div class="panel">
+        <div class="qtitle">Что на картинке? (${i+1}/${list.length})</div>
+        <div class="big-emoji">${q.emoji}</div>
+        <div class="opt-grid" id="og"></div></div>`;
+      const og=document.getElementById('og');
+      opts.forEach(o=>{
+        const b=document.createElement('button'); b.className='opt'; b.textContent=o;
+        b.onclick=()=>{
+          disableAll(og);
+          if(o===q.ans){ b.classList.add('correct'); addScore(); showGood(advance); }
+          else{ b.classList.add('wrong'); markCorrect(og,q.ans); showWrong(q.ans, RU[q.ans], advance); }
+        };
+        og.appendChild(b);
+      });
+    }
+    function advance(){ i++; if(i<list.length) show(); else nextStage(); }
+    show();
+  });
+}
+
+/* ============================================================
+   STAGE 3 — ПОГОДА → КОМАНДА
+   ============================================================ */
+function runWeather(){
+  stageIntro('🌦️','Подбери команду к погоде', ()=>{
+    const list = shuffle(WEATHER); let i=0;
+    function show(){
+      const q=list[i];
+      const order=shuffle([0,1]);
+      screenEl.innerHTML=`<div class="panel">
+        <div class="qtitle">Какая команда подходит? (${i+1}/${list.length})</div>
+        <div class="weather-line"><span class="emoji">${q.emoji}</span>${q.w}</div>
+        <div class="opt-grid one" id="og"></div></div>`;
+      const og=document.getElementById('og');
+      order.forEach(k=>{
+        const b=document.createElement('button'); b.className='opt'; b.textContent=q.opts[k];
+        b.onclick=()=>{
+          disableAll(og);
+          if(k===q.ans){ b.classList.add('correct'); addScore(); showGood(advance); }
+          else{ b.classList.add('wrong'); markCorrect(og,q.opts[q.ans]); showWrong(q.opts[q.ans],'', advance); }
+        };
+        og.appendChild(b);
+      });
+    }
+    function advance(){ i++; if(i<list.length) show(); else nextStage(); }
+    show();
+  });
+}
+
+/* ============================================================
+   STAGE 4 — ПЕЧАТНЫЙ ВВОД (2 попытки, гибко)
+   ============================================================ */
+function runType(){
+  stageIntro('⌨️','Напиши слово по-английски', ()=>{
+    const list = shuffle(TYPE); let i=0;
+    function show(){
+      const q=list[i]; let tries=0;
+      screenEl.innerHTML=`<div class="panel">
+        <div class="qtitle">Напиши слово (${i+1}/${list.length})</div>
+        <div class="big-emoji">${q.emoji}</div>
+        <div class="hint">${q.ru}</div>
+        <div class="inrow">
+          <input class="field" id="fld" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="...">
+          <button class="btn" style="width:auto;padding:12px 18px" id="chk">✓</button>
+        </div>
+        <div class="hint" id="msg" style="min-height:22px;margin-top:8px;color:var(--bad)"></div>
+      </div>`;
+      const fld=document.getElementById('fld'), msg=document.getElementById('msg');
+      fld.focus();
+      function check(){
+        const val=norm(fld.value);
+        if(!val) return;
+        if(q.accept.map(norm).includes(val)){
+          addScore(); fld.disabled=true; document.getElementById('chk').disabled=true; showGood(advance);
+        }else{
+          tries++;
+          if(tries<2){ msg.textContent='Попробуй ещё раз!'; fld.select(); }
+          else{ fld.disabled=true; document.getElementById('chk').disabled=true;
+                 showWrong(q.accept[0], q.ru, advance); }
+        }
+      }
+      document.getElementById('chk').onclick=check;
+      fld.addEventListener('keydown',e=>{ if(e.key==='Enter') check(); });
+    }
+    function advance(){ i++; if(i<list.length) show(); else nextStage(); }
+    show();
+  });
+}
+
+/* ============================================================
+   STAGE 5 — ПРАВДА / ЛОЖЬ
+   ============================================================ */
+function runTF(){
+  stageIntro('🤔','Правда или ложь?', ()=>{
+    const list = shuffle(TF); let i=0;
+    function show(){
+      const q=list[i];
+      screenEl.innerHTML=`<div class="panel">
+        <div class="qtitle">Это правильно? (${i+1}/${list.length})</div>
+        <div class="weather-line"><span class="emoji">${q.emoji}</span>${q.text}</div>
+        <div class="opt-grid" id="og">
+          <button class="opt" data-v="1">✅ True</button>
+          <button class="opt" data-v="0">❌ False</button>
+        </div></div>`;
+      const og=document.getElementById('og');
+      og.querySelectorAll('.opt').forEach(b=>{
+        b.onclick=()=>{
+          disableAll(og);
+          const chosen = b.dataset.v==='1';
+          if(chosen===q.ok){ b.classList.add('correct'); addScore(); showGood(advance); }
+          else{
+            b.classList.add('wrong');
+            const correctRu = q.ok ? 'True (правда)' : 'False (ложь)';
+            const eng = q.ok ? 'True' : 'False';
+            showWrong(eng, q.fix? 'нужно: '+q.fix : 'ложь', advance);
+          }
+        };
+      });
+    }
+    function advance(){ i++; if(i<list.length) show(); else nextStage(); }
+    show();
+  });
+}
+
+/* ============================================================
+   STAGE 6 — СОБЕРИ ПРЕДЛОЖЕНИЕ (2 попытки + сброс)
+   ============================================================ */
+function runBuild(){
+  stageIntro('🧩','Собери команду из слов', ()=>{
+    const list = shuffle(BUILD); let i=0;
+    function show(){
+      const q=list[i]; let tries=0; let placed=[];
+      const bankWords = shuffle(q.words.map((w,idx)=>({w,idx})));
+      screenEl.innerHTML=`<div class="panel">
+        <div class="qtitle">Поставь слова по порядку (${i+1}/${list.length})</div>
+        <div class="big-emoji" style="font-size:60px">${q.emoji}</div>
+        <div class="build-zone" id="zone"></div>
+        <div class="bank" id="bank"></div>
+        <div class="opt-grid"><button class="btn ghost" id="reset">↺ Сбросить</button>
+          <button class="btn" id="check">Проверить ✓</button></div>
+        <div class="hint" id="msg" style="min-height:22px;margin-top:8px;color:var(--bad)"></div>
+      </div>`;
+      const zone=document.getElementById('zone'), bank=document.getElementById('bank'), msg=document.getElementById('msg');
+      function renderBank(){
+        bank.innerHTML='';
+        bankWords.forEach(o=>{
+          const c=document.createElement('button'); c.className='chip'; c.textContent=o.w;
+          if(placed.includes(o.idx)) c.classList.add('used');
+          c.onclick=()=>{ if(placed.includes(o.idx))return; placed.push(o.idx); renderAll(); };
+          bank.appendChild(c);
+        });
+      }
+      function renderZone(){
+        zone.innerHTML='';
+        if(placed.length===0){ zone.innerHTML='<span style="opacity:.45">нажимай слова…</span>'; return; }
+        placed.forEach((pi,pos)=>{
+          const w=q.words[pi];
+          const c=document.createElement('button'); c.className='chip placed'; c.textContent=w;
+          c.onclick=()=>{ placed.splice(pos,1); renderAll(); };
+          zone.appendChild(c);
+        });
+      }
+      function renderAll(){ renderBank(); renderZone(); }
+      renderAll();
+      document.getElementById('reset').onclick=()=>{ placed=[]; msg.textContent=''; renderAll(); };
+      document.getElementById('check').onclick=()=>{
+        const made = norm(placed.map(p=>q.words[p]).join(' '));
+        if(made===norm(q.answer)){
+          addScore();
+          document.getElementById('check').disabled=true;
+          showGood(advance);
+        }else{
+          tries++;
+          if(tries<2){ msg.textContent='Почти! Попробуй ещё раз.'; }
+          else{
+            document.getElementById('check').disabled=true;
+            const nice = q.words.join(' ');
+            showWrong(nice,'', advance);
+          }
+        }
+      };
+    }
+    function advance(){ i++; if(i<list.length) show(); else nextStage(); }
+    show();
+  });
+}
+
+/* ============================================================
+   STAGE 7 — БОСС
+   ============================================================ */
+function runBoss(){
+  stageIntro('☃️','Генерал Мороз! Побей его правильными командами.', ()=>{
+    let hp=8; const maxHp=8;
+    const pool=shuffle(BOSS_POOL); let p=0;
+    function nextQ(){ const q=pool[p%pool.length]; p++; return q; }
+    function frame(){
+      screenEl.innerHTML=`<div class="panel boss-stage">
+        <div class="boss-emoji" id="boss">☃️</div>
+        <div class="hp"><div class="hp-fill" id="hpf" style="width:${(hp/maxHp)*100}%"></div></div>
+        <div class="qtitle" id="qt"></div>
+        <div class="weather-line" id="wl"></div>
+        <div class="opt-grid three" id="og"></div></div>`;
+      ask();
+    }
+    function ask(){
+      const q=nextQ();
+      document.getElementById('qt').textContent='Выбери правильную команду:';
+      document.getElementById('wl').innerHTML=`<span class="emoji">${q.emoji}</span>${q.w}`;
+      const og=document.getElementById('og'); og.innerHTML='';
+      shuffle([0,1,2]).forEach(k=>{
+        const b=document.createElement('button'); b.className='opt'; b.textContent=q.opts[k];
+        b.onclick=()=>{
+          disableAll(og);
+          const boss=document.getElementById('boss');
+          if(k===q.ans){
+            b.classList.add('correct'); addScore(); hp=Math.max(0,hp-1);
+            boss.classList.add('hit'); setTimeout(()=>boss.classList.remove('hit'),200);
+            document.getElementById('hpf').style.width=(hp/maxHp)*100+'%';
+            if(hp===0){ toast.textContent='ПОБЕДА! 🎉'; toast.className='toast good show';
+                        setTimeout(()=>{toast.classList.remove('show'); nextStage();},1300); }
+            else showGood(ask);
+          }else{
+            b.classList.add('wrong'); markCorrect(og,q.opts[q.ans]);
+            hp=Math.min(maxHp,hp+1); // босс лечится
+            document.getElementById('hpf').style.width=(hp/maxHp)*100+'%';
+            showWrong(q.opts[q.ans],'Генерал вылечился +1 ❤️', ask);
+          }
+        };
+        og.appendChild(b);
+      });
+    }
+    frame();
+  });
+}
+
+/* ============================================================
+   ФИНАЛ
+   ============================================================ */
+function renderEnd(){
+  setBg('sun'); stageTag.textContent='Финиш 🏁';
+  trackFill.style.width='100%'; traveler.style.left='96%';
+  let stars=1;
+  if(score>=MAX_SCORE*0.9) stars=3;
+  else if(score>=MAX_SCORE*0.7) stars=2;
+  const starStr='⭐'.repeat(stars)+'☆'.repeat(3-stars);
+  screenEl.innerHTML=`<div class="panel center">
+    <div class="big-emoji">🏆</div>
+    <div class="title-big">Great!</div>
+    <div class="stars">${starStr}</div>
+    <div class="lead">Очки: <b>${score}</b> из ${MAX_SCORE}</div>
+    <div class="spacer"></div>
+    <button class="btn" id="again">Играть снова ↻</button>
+  </div>`;
+  document.getElementById('again').onclick=()=>{
+    score=0; journeyDone=0; scoreEl.textContent='0';
+    trackFill.style.width='0%'; traveler.style.left='0%';
+    renderIntro();
+  };
+}
+
+/* ---------- shared option helpers ---------- */
+function disableAll(box){ box.querySelectorAll('.opt').forEach(b=>{b.disabled=true; b.onclick=null;}); }
+function markCorrect(box, text){
+  box.querySelectorAll('.opt').forEach(b=>{ if(b.textContent===text) b.classList.add('correct'); });
+}
+
+/* ---------- go ---------- */
+renderIntro();
+</script>
+</body>
+</html>
